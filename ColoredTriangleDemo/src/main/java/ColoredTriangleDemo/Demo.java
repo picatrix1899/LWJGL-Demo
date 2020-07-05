@@ -70,27 +70,23 @@ public class Demo
 		int msShader_vsId = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
 		int msShader_fsId = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
 		
-		GL20.glShaderSource(msShader_vsId, """
-				#version 400
-				
-				in vec3 coords;
-
-				void main()
-				{
-					gl_Position = vec4(coords, 1.0);
-				}
-				""");
+		GL20.glShaderSource(msShader_vsId, ""
+				+ "#version 400\n"
+				+ "in vec3 coords;\n"
+				+ "void main()\n"
+				+ "{\n"
+				+ "	gl_Position = vec4(coords, 1.0);\n"
+				+ "}"
+				);
 		
-		GL20.glShaderSource(msShader_fsId, """
-				#version 400
-
-				layout(location=0) out vec4 out_Color;
-				
-				void main()
-				{
-					out_Color = vec4(1,0,0,1);
-				}
-				""");
+		GL20.glShaderSource(msShader_fsId, ""
+				+ "#version 400\n"
+				+ "layout(location=0) out vec4 out_Color;\n"
+				+ "void main()\n"
+				+ "{\n"
+				+ "	out_Color = vec4(1,0,0,1);\n"
+				+ "}"
+				);
 		
 		GL20.glCompileShader(msShader_vsId);
 		GL20.glCompileShader(msShader_fsId);

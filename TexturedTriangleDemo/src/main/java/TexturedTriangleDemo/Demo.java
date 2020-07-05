@@ -1,14 +1,22 @@
-package ColoredTriangleDemo;
+package TexturedTriangleDemo;
 
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
+
+import javax.imageio.ImageIO;
 
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.GL32;
 import org.lwjgl.system.MemoryUtil;
 
 public class Demo
@@ -89,19 +97,33 @@ public class Demo
 
 		MemoryUtil.memFree(vertexBuffer);
 		
-		int shaderProgramId = GL20.glCreateProgram();
+		FloatBuffer texCoordBuffer = MemoryUtil.memAllocFloat(3 * 2);
+		texCoordBuffer.put(new float[] {0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 1.0f});
+		texCoordBuffer.flip();
 		
+		GL30.glBindVertexArray(triangleVAOId);
+		int triangleTexCoordVBOId = GL15.glGenBuffers();
+		GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, triangleTexCoordVBOId);
+		GL15.glBufferData(GL15.GL_ARRAY_BUFFER, texCoordBuffer, GL15.GL_STATIC_DRAW);
+		GL20.glVertexAttribPointer(1, 2, GL11.GL_FLOAT, false, 0, 0);
+		
+		MemoryUtil.memFree(texCoordBuffer);
+		
+		int shaderProgramId = GL20.glCreateProgram();
 		int vertexShaderId = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
 
+		
 		GL20.glShaderSource(vertexShaderId, ""
 				+ "#version 400\n"
 				+ "in vec2 coords;\n"
+				+ "in vec2 texCoords;\n"
+				+ "out vec2 pass_texCoords;\n"
 				+ "void main()\n"
 				+ "{\n"
 				+ "	gl_Position = vec4(vec3(coords, 1.0), 1.0);\n"
+				+ "	pass_texCoords = texCoords;\n"
 				+ "}"
 				);
-		
 		GL20.glCompileShader(vertexShaderId);
 		
 		if(GL20.glGetShaderi(vertexShaderId, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE)
@@ -114,14 +136,15 @@ public class Demo
 		
 		GL20.glShaderSource(fragmentShaderId, ""
 				+ "#version 400\n"
+				+ "in vec2 pass_texCoords;\n"
 				+ "layout(location=0) out vec4 out_Color;\n"
+				+ "uniform sampler2D diffuse;\n"
 				+ "void main()\n"
 				+ "{\n"
-				+ "	out_Color = vec4(1,0,0,1);\n"
+				+ "	out_Color = texture(diffuse, pass_texCoords);\n"
 				+ "}"
 				);
-		
-		
+
 		GL20.glCompileShader(fragmentShaderId);
 
 		if(GL20.glGetShaderi(fragmentShaderId, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE)
@@ -134,11 +157,56 @@ public class Demo
 		GL20.glAttachShader(shaderProgramId, fragmentShaderId);
 		
 		GL20.glBindAttribLocation(shaderProgramId, 0, "coords");
+		GL20.glBindAttribLocation(shaderProgramId, 1, "texCoords");
 		
 		GL20.glLinkProgram(shaderProgramId);
 		
 		GL20.glValidateProgram(shaderProgramId);
 		
+		int textureUniformLocation = GL20.glGetUniformLocation(shaderProgramId, "diffuse");
+		
+		BufferedImage texture = null;
+		try
+		{
+			texture = ImageIO.read(new File("test.png"));
+		} catch (IOException e)
+		{
+			e.printStackTrace();
+			System.exit(-1);
+		}
+
+		int textureWidth = texture.getWidth();
+		int textureHeight = texture.getHeight();
+		
+		int[] pixels = new int[textureWidth * textureHeight];
+		texture.getRGB(0, 0, textureWidth, textureHeight, pixels, 0, textureWidth);
+
+		int textureId = GL11.glGenTextures();
+
+		ByteBuffer buffer = MemoryUtil.memAlloc(textureWidth * textureHeight * 4);
+
+		for(int y = 0; y < textureHeight; y++)
+			for(int x = 0; x < textureWidth; x++)
+			{
+				int pixel = pixels[y * textureWidth + x];
+				
+				buffer.put((byte)((pixel >> 16) & 0xFF)); // Red component
+				buffer.put((byte)((pixel >> 8) & 0xFF)); // Green component
+				buffer.put((byte)(pixel & 0xFF)); // Blue component
+				buffer.put((byte)((pixel >> 24) & 0xFF)); //Alpha component
+			}
+
+		buffer.flip();
+		
+		GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
+
+		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+		
+		GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, textureWidth, textureHeight, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);		
+		
+		MemoryUtil.memFree(buffer);
+
 		/* ===========
 		 *  MAIN LOOP
 		 * =========== */
@@ -171,18 +239,25 @@ public class Demo
 			
 			// For this demo there is no update code.
 			
-			/* =============
-			 *  RENDER CODE
-			 * =============*/
+			/* ====================
+			 * RENDER CODE
+			 * ==================== */
 			
 			// Binding the VAO that contains the vertex data of our triangle.
 			GL30.glBindVertexArray(triangleVAOId);
 			
 			// Enabling the position pointer "0" for streaming the vertex data of the triangle to gpu.
 			GL20.glEnableVertexAttribArray(0);
-
+			
+			// Enabling the position pointer "1" for streaming the texture coordinate data of the triangle to gpu.
+			GL20.glEnableVertexAttribArray(1);
+			
 			// Starting the shader.
 			GL20.glUseProgram(shaderProgramId);
+			
+			GL13.glActiveTexture(GL13.GL_TEXTURE0);
+			GL11.glBindTexture(GL32.GL_TEXTURE_2D, textureId);
+			GL20.glUniform1i(textureUniformLocation, 0);
 			
 			// Drawing the triangle.
 			GL11.glDrawArrays(GL11.GL_TRIANGLE_STRIP, 0, 3);
@@ -191,15 +266,17 @@ public class Demo
 			GL20.glUseProgram(0);
 		}
 		
-		/* ================
-		 *  FREE RESOURCES
-		 * ================ */
+		/* =====================
+		 * FREE RESOURCES
+		 * ===================== */
 		
 		GL30.glDeleteVertexArrays(triangleVAOId);
 		GL30.glDeleteBuffers(triangleVertexVBOId);
+		GL30.glDeleteBuffers(triangleTexCoordVBOId);
 		GL20.glDeleteProgram(shaderProgramId);
 		GL20.glDeleteShader(vertexShaderId);
 		GL20.glDeleteShader(fragmentShaderId);
+		GL11.glDeleteTextures(textureId);
 
 		GLFW.glfwDestroyWindow(windowId);
 	}

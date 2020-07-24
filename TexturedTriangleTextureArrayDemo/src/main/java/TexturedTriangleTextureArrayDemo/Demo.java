@@ -143,7 +143,9 @@ public class Demo
 				+ "uniform int framePos;\n"
 				+ "void main()\n"
 				+ "{\n"
-				+ "	out_Color = texture(diffuse, vec3(pass_texCoords, framePos));\n"
+				+ "	vec4 color0 = texture(diffuse, vec3(pass_texCoords, 0));\n"
+				+ "	vec4 color1 = texture(diffuse, vec3(pass_texCoords, 1));\n"
+				+ "	out_Color = mix(color0, color1, pass_texCoords.x);\n"
 				+ "}"
 				);
 
@@ -166,7 +168,6 @@ public class Demo
 		GL20.glValidateProgram(shaderProgramId);
 		
 		int textureUniformLocation = GL20.glGetUniformLocation(shaderProgramId, "diffuse");
-		int framePosUniformLocation = GL20.glGetUniformLocation(shaderProgramId, "framePos");
 		
 		int textureId = GL11.glGenTextures();
 		
@@ -298,8 +299,6 @@ public class Demo
 			GL13.glActiveTexture(GL13.GL_TEXTURE0);
 			GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, textureId);
 			GL20.glUniform1i(textureUniformLocation, 0);
-			
-			GL20.glUniform1i(framePosUniformLocation, 1);
 			
 			// Drawing the triangle.
 			GL11.glDrawArrays(GL11.GL_TRIANGLE_STRIP, 0, 3);

@@ -13,9 +13,9 @@ public class Demo
 	// The initial height of the window.
 	public static int HEIGHT = 600;
 	
-	public static void main(String[] args) { new Demo(); }
+	public static void main(String[] args) { new Demo().run(); }
 
-	public Demo()
+	public void run()
 	{
 		/* ============
 		 *  SETUP CODE

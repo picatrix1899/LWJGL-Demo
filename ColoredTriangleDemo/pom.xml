@@ -8,7 +8,7 @@
   <artifactId>ColoredTriangleDemo</artifactId>
   <version>0.0.1-SNAPSHOT</version>
 
-  <name>GameLoopBaseProject</name>
+  <name>ColoredTriangleDemo</name>
   
   <build>
     <plugins>

@@ -10,6 +10,7 @@ import javax.imageio.ImageIO;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
@@ -93,8 +94,13 @@ public class Demo
 		 *  INIT CODE
 		 * =========== */
 		
+		// Generate the id for the virtual object called vertex array object (VAO) representing our box.
+		// The VAO holds buffers containing vertex data like positions, texture coordinates, normals etc. but also
+		// pointers to these informations that will become important for seperatly sending the data to the vertex shader.
 		int boxVAOId = GL30.glGenVertexArrays();
 
+		// Allocating a temporary float buffer and filling it with vertex data.
+		// Here the data for a single vertex consists of 3 floats for position x, y and z and 2 floats for texture coordinates u and v.
 		FloatBuffer vertexBuffer = MemoryUtil.memAllocFloat(36 * 5);
 		vertexBuffer.put(new float[] {
 			        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
@@ -140,19 +146,46 @@ public class Demo
 			        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f});
 		vertexBuffer.flip();
 		
+		// Binding the VAO for setup.
 		GL30.glBindVertexArray(boxVAOId);
 		
+		// Generate an id for a buffer called vertex buffer object (VBO) that will be referenced by the VAO.
+		// It will contain the vertex data.
 		int boxVertexVBOId = GL15.glGenBuffers();
+		
+		// Bind the VBO for setup.
 		GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, boxVertexVBOId);
+		
+		// Put the vertex data safted in the temporary buffer into the VBO and telling
+		// the VBO, that the buffered data will be "static" and therefore doesn't change.
 		GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vertexBuffer, GL15.GL_STATIC_DRAW);
+		
+		// Setting the pointer for position x, y and z in vertex data.
+		// The stride is the amount of values per vertex in bytes.
+		// In this case it's five float values á four bytes.
 		GL20.glVertexAttribPointer(0, 3, GL11.GL_FLOAT, false, 5 * 4, 0);
+		
+		// Setting the pointer for texture coordinates u and v in vertex data.
+		// The stride is the amount of values per vertex in bytes.
+		// In this case it's five float values á four bytes.
+		// The pointer aka the offset is the amount of values before the current value range in bytes.
+		// In this case the previous values where the positions consisting of three floats á four bytes.
 		GL20.glVertexAttribPointer(1, 2, GL11.GL_FLOAT, false, 5 * 4, 3 * 4);
 		
+		// Unbinding the VAO after setup to not mess itself or other VAOs up.
+		// This is not really necessary and should be seen as a safety messurement.
+		GL30.glBindVertexArray(0);
+		
+		// deallocating the temporary buffer for the vertex data.
 		MemoryUtil.memFree(vertexBuffer);
 
+		// Generate an id for the shader program.
 		int shaderProgramId = GL20.glCreateProgram();
+		
+		// Generate an id for the vertex shader.
 		int vertexShaderId = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
 		
+		// Pass vertex shader source to the shader.
 		GL20.glShaderSource(vertexShaderId, ""
 				+ "#version 400\n"
 				+ "in vec3 coords;\n"
@@ -167,16 +200,19 @@ public class Demo
 				+ "	pass_texCoords = texCoords;\n"
 				+ "}"
 				);
-		GL20.glCompileShader(vertexShaderId);
 		
+		// Compile the vertex shader and check for errors.
+		GL20.glCompileShader(vertexShaderId);
 		if(GL20.glGetShaderi(vertexShaderId, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE)
 		{
 			System.err.println(GL20.glGetShaderInfoLog(vertexShaderId, 1000));
 			System.exit(-1);
 		}
 		
+		// Generate an id for the fragment shader.
 		int fragmentShaderId = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
 		
+		// Pass fragment shader source to the shader.
 		GL20.glShaderSource(fragmentShaderId, ""
 				+ "#version 400\n"
 				+ "in vec2 pass_texCoords;\n"
@@ -188,29 +224,37 @@ public class Demo
 				+ "}"
 				);
 
+		// Compile the fragment shader and check for errors.
 		GL20.glCompileShader(fragmentShaderId);
-
 		if(GL20.glGetShaderi(fragmentShaderId, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE)
 		{
 			System.err.println(GL20.glGetShaderInfoLog(fragmentShaderId, 1000));
 			System.exit(-1);
 		}
 		
+		// Attach the vertex and fragment shader to the shader program.
 		GL20.glAttachShader(shaderProgramId, vertexShaderId);
 		GL20.glAttachShader(shaderProgramId, fragmentShaderId);
 		
+		// Bind the VAO pointer for vertex positions to the shader input variable "coords".
 		GL20.glBindAttribLocation(shaderProgramId, 0, "coords");
+		
+		// Bind the VAO pointer for vertex texture coordinates to the shader input variable "texCoords".
 		GL20.glBindAttribLocation(shaderProgramId, 1, "texCoords");
 		
+		// Link the shader program together.
 		GL20.glLinkProgram(shaderProgramId);
 		
+		// Validate the shader program.
 		GL20.glValidateProgram(shaderProgramId);
 		
+		// Retrieve the locations for the uniform variables in the shader program to set their values later.
 		int textureUniformLocation = GL20.glGetUniformLocation(shaderProgramId, "diffuse");
 		int projectionMatrixUniformLocation = GL20.glGetUniformLocation(shaderProgramId, "T_projection");
 		int viewMatrixUniformLocation = GL20.glGetUniformLocation(shaderProgramId, "T_view");
 		int modelMatrixUniformLocation = GL20.glGetUniformLocation(shaderProgramId, "T_model");
 		
+		// Read the pixel data of an image manually.
 		BufferedImage texture = null;
 		try
 		{
@@ -227,15 +271,12 @@ public class Demo
 		int[] pixels = new int[textureWidth * textureHeight];
 		texture.getRGB(0, 0, textureWidth, textureHeight, pixels, 0, textureWidth);
 
-		int textureId = GL11.glGenTextures();
-
 		ByteBuffer buffer = MemoryUtil.memAlloc(textureWidth * textureHeight * 4);
 
 		for(int y = 0; y < textureHeight; y++)
 			for(int x = 0; x < textureWidth; x++)
 			{
 				int pixel = pixels[y * textureWidth + x];
-				
 				buffer.put((byte)((pixel >> 16) & 0xFF)); // Red component
 				buffer.put((byte)((pixel >> 8) & 0xFF)); // Green component
 				buffer.put((byte)(pixel & 0xFF)); // Blue component
@@ -243,6 +284,8 @@ public class Demo
 			}
 
 		buffer.flip();
+		
+		int textureId = GL11.glGenTextures();
 		
 		GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
 
@@ -266,7 +309,6 @@ public class Demo
 		        new Vector3f(-1.3f,  1.0f, -1.5f)
 		    };
 		
-
 		FloatBuffer matrixCarrierBuffer = MemoryUtil.memAllocFloat(16);
 		
 		Matrix4f projectionMatrix = new Matrix4f().setPerspective((float)Math.toRadians(45.0), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
@@ -278,7 +320,8 @@ public class Demo
 
 		GL20.glUseProgram(0);
 		
-
+		// Setting the default color of the pixels that are not affected by the rendered objects.
+		GL11.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		
 		/* ===========
 		 *  MAIN LOOP
@@ -299,15 +342,7 @@ public class Demo
 			
 			// If the window is demanded of closing by pressing the "X" icon the demo program should close.
 			if(GLFW.glfwWindowShouldClose(windowId)) isRunning = false;
-			
-			GL11.glViewport(0, 0, WIDTH, HEIGHT);
-			
-			// Clearing the pixeldata, the depthdata and the stencildata of the screen.
-			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
-			
-			// Setting the default color of the pixels that are not affected by the rendered objects.
-			GL11.glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
-		
+
 			/* =============
 			 *  UPDATE CODE
 			 * =============*/
@@ -317,7 +352,10 @@ public class Demo
 			/* ====================
 			 * RENDER CODE
 			 * ==================== */
-			
+
+			// Clearing the pixeldata, the depthdata and the stencildata of the screen.
+			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_STENCIL_BUFFER_BIT);
+
 			GL11.glEnable(GL11.GL_DEPTH_TEST);
 			
 			// Binding the VAO that contains the vertex data of our triangle.

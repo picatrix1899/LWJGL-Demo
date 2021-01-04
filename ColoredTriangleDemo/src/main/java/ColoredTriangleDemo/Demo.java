@@ -25,7 +25,7 @@ public class Demo
 	public static int HEIGHT = 600;
 	
 	public static void main(String[] args) { new Demo().run(); }
-
+	
 	public void run()
 	{
 		/* ============
@@ -67,10 +67,10 @@ public class Demo
 			System.err.println("Cannot create window.");
 			System.exit(-1);
 		}
-			
+		
 		// Setting the OpenGL Context (contains all the resources like textures, shaders etc.) of the window as current to use.
 		GLFW.glfwMakeContextCurrent(windowId);
-
+		
 		// Creating the OpenGL capabilities for this window.
 		GL.createCapabilities();
 		
@@ -82,7 +82,7 @@ public class Demo
 		// The VAO holds references to buffers containing vertex data like positions, texture coordinates, normals etc. but also
 		// pointers to these informations, that will become important for seperatly sending the data to the vertex shader.
 		int triangleVAOId = GL30.glGenVertexArrays();
-
+		
 		// Binding the VAO for setup.
 		GL30.glBindVertexArray(triangleVAOId);
 		
@@ -102,7 +102,7 @@ public class Demo
 				-0.5f, -0.5f,
 				0.5f, -0.5f,
 				0.0f,  0.5f});
-		
+			
 			// Reset the insert/read position to 0 to allow reading from the beginning of the buffer.
 			vertexBuffer.flip();
 			
@@ -119,7 +119,7 @@ public class Demo
 		
 		// Generate an id for the vertex shader.
 		int vertexShaderId = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
-
+		
 		// Pass vertex shader source to the shader.
 		GL20.glShaderSource(vertexShaderId, ""
 			+ "#version 400\n"
@@ -137,7 +137,7 @@ public class Demo
 			System.err.println(GL20.glGetShaderInfoLog(vertexShaderId, 1000));
 			System.exit(-1);
 		}
-
+		
 		// Generate an id for the fragment shader.
 		int fragmentShaderId = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
 		
@@ -159,7 +159,7 @@ public class Demo
 			System.err.println(GL20.glGetShaderInfoLog(fragmentShaderId, 1000));
 			System.exit(-1);
 		}
-
+		
 		// Attach the vertex and fragment shader to the shader program.
 		GL20.glAttachShader(shaderProgramId, vertexShaderId);
 		GL20.glAttachShader(shaderProgramId, fragmentShaderId);
@@ -202,7 +202,7 @@ public class Demo
 			
 			// If the window is demanded of closing by pressing the "X" icon the demo program should close.
 			if(GLFW.glfwWindowShouldClose(windowId)) isRunning = false;
-
+			
 			/* =============
 			 *  UPDATE CODE
 			 * =============*/
@@ -213,6 +213,11 @@ public class Demo
 			 *  RENDER CODE
 			 * =============*/
 			
+			// Set the viewport for rendering to the dimensions of the window.
+			// This is not neccessary as long as the only framebuffer been rendered to is the
+			// framebuffer of the window itself. The moment you are rendering to multiple framebuffers
+			// you have to set the viewport to the corresponding dimensions of the framebuffer you're gonna
+			// rendering to.
 			GL11.glViewport(0, 0, WIDTH, HEIGHT);
 			
 			// Setting the default color of the pixels that are not affected by the rendered objects.
@@ -226,12 +231,12 @@ public class Demo
 			
 			// Enabling the position pointer "0" for streaming the vertex data of the triangle to gpu.
 			GL20.glEnableVertexAttribArray(0);
-
+			
 			// Starting the shader.
 			GL20.glUseProgram(shaderProgramId);
 			
 			// Drawing the triangle.
-			GL11.glDrawArrays(GL11.GL_TRIANGLE_STRIP, 0, 3);
+			GL11.glDrawArrays(GL11.GL_TRIANGLES, 0, 3);
 			
 			// Stopping the running shader.
 			GL20.glUseProgram(0);
@@ -250,7 +255,7 @@ public class Demo
 		GL20.glDeleteProgram(shaderProgramId);
 		GL20.glDeleteShader(vertexShaderId);
 		GL20.glDeleteShader(fragmentShaderId);
-
+		
 		GLFW.glfwDestroyWindow(windowId);
 	}
 }

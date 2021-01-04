@@ -9,8 +9,13 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
-import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.system.MemoryStack;
 
+/**
+ * This demo shows how to render a 2d triangle with a in the fragment shader predefined color.
+ * 
+ * @author picatrix1899
+ */
 public class Demo
 {
 	// The initial width of the window.
@@ -73,71 +78,110 @@ public class Demo
 		 *  INIT CODE
 		 * =========== */
 		
+		// Generate the id for the virtual object called vertex array object (VAO) representing our triangle.
+		// The VAO holds references to buffers containing vertex data like positions, texture coordinates, normals etc. but also
+		// pointers to these informations, that will become important for seperatly sending the data to the vertex shader.
 		int triangleVAOId = GL30.glGenVertexArrays();
-		
-		GL30.glBindVertexArray(triangleVAOId);
 
-		FloatBuffer vertexBuffer = MemoryUtil.memAllocFloat(3 * 2);
-		vertexBuffer.put(new float[] {-0.5f, -0.5f, 0.5f, -0.5f, 0.0f,  0.5f});
-		vertexBuffer.flip();
-		
+		// Binding the VAO for setup.
 		GL30.glBindVertexArray(triangleVAOId);
+		
+		// Generate an id for a buffer called vertex buffer object (VBO) that will be referenced by the VAO.
+		// It will contain the vertex data.
 		int triangleVertexVBOId = GL15.glGenBuffers();
-		GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, triangleVertexVBOId);
-		GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vertexBuffer, GL15.GL_STATIC_DRAW);
-		GL20.glVertexAttribPointer(0, 2, GL11.GL_FLOAT, false, 0, 0);
-
-		MemoryUtil.memFree(vertexBuffer);
 		
+		// Bind the VBO for setup.
+		GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, triangleVertexVBOId);
+		
+		try(MemoryStack stack = MemoryStack.stackPush())
+		{
+			// Allocating a temporary float buffer and filling it with vertex data.
+			// Here the data for a single vertex consists of 2 floats for position x, y.
+			FloatBuffer vertexBuffer = stack.mallocFloat(3 * 2);
+			vertexBuffer.put(new float[] {
+				-0.5f, -0.5f,
+				0.5f, -0.5f,
+				0.0f,  0.5f});
+		
+			// Reset the insert/read position to 0 to allow reading from the beginning of the buffer.
+			vertexBuffer.flip();
+			
+			// Put the vertex data safed in the temporary buffer into the VBO and telling
+			// the VBO, that the buffered data will be "static" and therefore doesn't change.
+			GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vertexBuffer, GL15.GL_STATIC_DRAW);
+		}
+		
+		// Setting the pointer for position x, y in vertex data.
+		GL20.glVertexAttribPointer(0, 2, GL11.GL_FLOAT, false, 0, 0);
+		
+		// Generate an id for the shader program.
 		int shaderProgramId = GL20.glCreateProgram();
 		
+		// Generate an id for the vertex shader.
 		int vertexShaderId = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
 
+		// Pass vertex shader source to the shader.
 		GL20.glShaderSource(vertexShaderId, ""
-				+ "#version 400\n"
-				+ "in vec2 coords;\n"
-				+ "void main()\n"
-				+ "{\n"
-				+ "	gl_Position = vec4(vec3(coords, 1.0), 1.0);\n"
-				+ "}"
-				);
+			+ "#version 400\n"
+			+ "in vec2 coords;\n"
+			+ "void main()\n"
+			+ "{\n"
+			+ "	gl_Position = vec4(vec3(coords, 1.0), 1.0);\n"
+			+ "}"
+			);
 		
+		// Compile the vertex shader and check for compilation errors.
 		GL20.glCompileShader(vertexShaderId);
-		
 		if(GL20.glGetShaderi(vertexShaderId, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE)
 		{
 			System.err.println(GL20.glGetShaderInfoLog(vertexShaderId, 1000));
 			System.exit(-1);
 		}
-		
+
+		// Generate an id for the fragment shader.
 		int fragmentShaderId = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
 		
+		// Pass fragment shader source to the shader.
 		GL20.glShaderSource(fragmentShaderId, ""
-				+ "#version 400\n"
-				+ "layout(location=0) out vec4 out_Color;\n"
-				+ "void main()\n"
-				+ "{\n"
-				+ "	out_Color = vec4(1,0,0,1);\n"
-				+ "}"
-				);
+			+ "#version 400\n"
+			+ "layout(location=0) out vec4 out_Color;\n"
+			+ "void main()\n"
+			+ "{\n"
+			+ " vec3 color = vec3(1.0, 0.0, 0.0);\n"
+			+ "	out_Color = vec4(color, 1.0);\n"
+			+ "}"
+			);
 		
-		
+		// Compile the fragment shader and check for compilation errors.
 		GL20.glCompileShader(fragmentShaderId);
-
 		if(GL20.glGetShaderi(fragmentShaderId, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE)
 		{
 			System.err.println(GL20.glGetShaderInfoLog(fragmentShaderId, 1000));
 			System.exit(-1);
 		}
-		
+
+		// Attach the vertex and fragment shader to the shader program.
 		GL20.glAttachShader(shaderProgramId, vertexShaderId);
 		GL20.glAttachShader(shaderProgramId, fragmentShaderId);
 		
+		// Bind the VAO pointer for vertex positions to the shader input variable "coords".
 		GL20.glBindAttribLocation(shaderProgramId, 0, "coords");
 		
+		// Link the shader program together and check for linking errors.
 		GL20.glLinkProgram(shaderProgramId);
+		if(GL20.glGetProgrami(shaderProgramId, GL20.GL_LINK_STATUS) == GL11.GL_FALSE)
+		{
+			System.err.println(GL20.glGetProgramInfoLog(vertexShaderId, 1000));
+			System.exit(-1);
+		}
 		
+		// Validate the shader program and check for validation errors.
 		GL20.glValidateProgram(shaderProgramId);
+		if(GL20.glGetProgrami(shaderProgramId, GL20.GL_VALIDATE_STATUS) == GL11.GL_FALSE)
+		{
+			System.err.println(GL20.glGetProgramInfoLog(vertexShaderId, 1000));
+			System.exit(-1);
+		}
 		
 		/* ===========
 		 *  MAIN LOOP
@@ -158,13 +202,7 @@ public class Demo
 			
 			// If the window is demanded of closing by pressing the "X" icon the demo program should close.
 			if(GLFW.glfwWindowShouldClose(windowId)) isRunning = false;
-			
-			// Clearing the pixeldata, the depthdata and the stencildata of the screen.
-			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_STENCIL_BUFFER_BIT);
-			
-			// Setting the default color of the pixels that are not affected by the rendered objects.
-			GL11.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		
+
 			/* =============
 			 *  UPDATE CODE
 			 * =============*/
@@ -174,6 +212,14 @@ public class Demo
 			/* =============
 			 *  RENDER CODE
 			 * =============*/
+			
+			GL11.glViewport(0, 0, WIDTH, HEIGHT);
+			
+			// Setting the default color of the pixels that are not affected by the rendered objects.
+			GL11.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+			
+			// Clearing the pixeldata, the depthdata and the stencildata of the screen.
+			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_STENCIL_BUFFER_BIT);
 			
 			// Binding the VAO that contains the vertex data of our triangle.
 			GL30.glBindVertexArray(triangleVAOId);
@@ -197,6 +243,10 @@ public class Demo
 		
 		GL30.glDeleteVertexArrays(triangleVAOId);
 		GL30.glDeleteBuffers(triangleVertexVBOId);
+		
+		// Deleting the shader program and the vertex and fragment shader.
+		// Deleting the shader program does not automatically delete the attached shaders,
+		// as they can be attached to multiple shader programs.
 		GL20.glDeleteProgram(shaderProgramId);
 		GL20.glDeleteShader(vertexShaderId);
 		GL20.glDeleteShader(fragmentShaderId);

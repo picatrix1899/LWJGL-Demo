@@ -156,7 +156,7 @@ public class Demo
 		// Bind the VBO for setup.
 		GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, boxVertexVBOId);
 		
-		// Put the vertex data safted in the temporary buffer into the VBO and telling
+		// Put the vertex data safed in the temporary buffer into the VBO and telling
 		// the VBO, that the buffered data will be "static" and therefore doesn't change.
 		GL15.glBufferData(GL15.GL_ARRAY_BUFFER, vertexBuffer, GL15.GL_STATIC_DRAW);
 		

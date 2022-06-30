@@ -79,17 +79,11 @@ public class Demo
 		// Generate the id for the virtual object called vertex array object (VAO) representing our triangle.
 		// The VAO holds references to buffers containing vertex data like positions, texture coordinates, normals etc. but also
 		// pointers to these informations, that will become important for seperatly sending the data to the vertex shader.
-		int triangleVAOId = glGenVertexArrays();
-		
-		// Binding the VAO for setup.
-		glBindVertexArray(triangleVAOId);
+		int triangleVAOId = glCreateVertexArrays();
 		
 		// Generate an id for a buffer called vertex buffer object (VBO) that will be referenced by the VAO.
 		// It will contain the vertex data.
-		int triangleVertexVBOId = glGenBuffers();
-		
-		// Bind the VBO for setup.
-		glBindBuffer(GL_ARRAY_BUFFER, triangleVertexVBOId);
+		int triangleVertexVBOId = glCreateBuffers();
 		
 		try(MemoryStack stack = MemoryStack.stackPush())
 		{
@@ -106,11 +100,22 @@ public class Demo
 			
 			// Put the vertex data safed in the temporary buffer into the VBO and telling
 			// the VBO, that the buffered data will be "static" and therefore doesn't change.
-			glBufferData(GL_ARRAY_BUFFER, vertexBuffer, GL_STATIC_DRAW);
+			glNamedBufferData(triangleVertexVBOId, vertexBuffer, GL_STATIC_DRAW);
 		}
 		
-		// Setting the pointer for position x, y in vertex data.
-		glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
+		// Binding the VAO for setup.
+		glBindVertexArray(triangleVAOId);
+		
+		// Bind the VBO for setup.
+		glBindBuffer(GL_ARRAY_BUFFER, triangleVertexVBOId);
+		
+		glBindVertexBuffer(0, triangleVertexVBOId, 0, 2 * 4);
+		
+		// Enabling the position pointer "0" for streaming the vertex data of the triangle to gpu.
+		glEnableVertexAttribArray(0);
+		
+		glVertexArrayAttribFormat(triangleVAOId, 0, 2, GL_FLOAT, false, 0);
+		glVertexArrayAttribBinding(triangleVAOId, 0, 0);
 		
 		// Generate an id for the shader program.
 		int shaderProgramId = glCreateProgram();
@@ -226,9 +231,6 @@ public class Demo
 			
 			// Binding the VAO that contains the vertex data of our triangle.
 			glBindVertexArray(triangleVAOId);
-			
-			// Enabling the position pointer "0" for streaming the vertex data of the triangle to gpu.
-			glEnableVertexAttribArray(0);
 			
 			// Starting the shader.
 			glUseProgram(shaderProgramId);

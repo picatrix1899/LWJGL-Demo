@@ -1,4 +1,4 @@
-package ColoredTriangleDemo;
+package com.lwjgldemo.fullscreen;
 
 import java.nio.FloatBuffer;
 
@@ -12,9 +12,8 @@ import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.system.MemoryStack;
-import org.lwjgl.system.NativeType;
 
-public class Demo
+public class App
 {
 	// The initial width of the window.
 	public static int WIDTH = 800;
@@ -22,7 +21,7 @@ public class Demo
 	// The initial height of the window.
 	public static int HEIGHT = 600;
 	
-	public static void main(String[] args) { new Demo().run(); }
+	public static void main(String[] args) { new App().run(); }
 	
 	public void run()
 	{
@@ -326,12 +325,10 @@ public class Demo
 	 * @author Brian_Entei
 	 * @author picatrix1899
 	 */
-	@NativeType("GLFWmonitor *")
 	public long glfwGetCurrentMonitor(long window)
 	{
 	    int[] windowPosX = new int[1];
 	    int[] windowPosY = new int[1];
-	    
 	    
 	    GLFW.glfwGetWindowPos(window, windowPosX, windowPosY);
 	    
